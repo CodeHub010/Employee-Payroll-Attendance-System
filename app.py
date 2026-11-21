@@ -1,6 +1,8 @@
+
 import streamlit as st
 import pandas as pd
 import mysql.connector
+from pathlib import Path
 
 # =====================================================
 # PAGE CONFIGURATION
@@ -13,104 +15,62 @@ st.set_page_config(
 )
 
 # =====================================================
-# DATABASE CONNECTION
+# TIDB CLOUD CONNECTION
 # =====================================================
 
-from pathlib import Path
+CA_CERTIFICATE = Path(__file__).parent / "isrgrootx1.pem"
+
+
+def load_database_config():
+    try:
+        secrets = st.secrets["tidb"]
+
+        return {
+            "host": secrets["host"],
+            "port": 4000,
+            "user": secrets["user"],
+            "password": secrets["password"],
+            "database": "employee_management",
+            "ssl_ca": str(CA_CERTIFICATE),
+            "ssl_verify_cert": True,
+            "ssl_verify_identity": True
+        }
+
+    except (KeyError, FileNotFoundError):
+        return None
+
+    except Exception as e:
+        st.error(f"Unable to load database secrets: {e}")
+        return None
+
 
 if "db_config" not in st.session_state:
+    st.session_state.db_config = load_database_config()
 
-    st.session_state.db_config = {
-        "host": st.secrets["tidb"]["host"],
-        "port": 4000,
-        "user": st.secrets["tidb"]["user"],
-        "password": st.secrets["tidb"]["password"],
-        "database": "employee_management",
-        "ssl_ca": str(Path(__file__).parent / "isrgrootx1.pem"),
-        "ssl_verify_cert": True,
-        "ssl_verify_identity": True
-    } if "tidb" in st.secrets else None
+
+# =====================================================
+# SIDEBAR
+# =====================================================
 
 with st.sidebar:
 
     st.title("🏢 Employee Manager")
     st.subheader("Database Connection")
 
-    with st.form("connection_form"):
-
-        host = st.text_input(
-            "Host",
-            "gateway01.ap-northeast-1.prod.aws.tidbcloud.com"
-        )
-
-        port = st.number_input(
-            "Port",
-            value=4000
-        )
-
-        user = st.text_input(
-            "Username",
-            "1NUL8yNePuqma3c.root"
-        )
-
-        password = st.text_input(
-            "TiDB Password",
-            type="password"
-        )
-
-        database = st.text_input(
-            "Database",
-            "employee_management"
-        )
-
-        ssl_ca = st.text_input(
-            "CA Certificate Path",
-            r"C:\Users\Vishal\Downloads\isrgrootx1.pem"
-        )
-
-        connect = st.form_submit_button("Connect to TiDB")
-
-    if connect:
-
-        try:
-
-            connection = mysql.connector.connect(
-                host=host,
-                port=int(port),
-                user=user,
-                password=password,
-                database=database,
-                ssl_ca=ssl_ca,
-                ssl_verify_cert=True,
-                ssl_verify_identity=True
-            )
-
-            connection.close()
-
-            st.session_state.db_config = {
-                "host": host,
-                "port": int(port),
-                "user": user,
-                "password": password,
-                "database": database,
-                "ssl_ca": ssl_ca,
-                "ssl_verify_cert": True,
-                "ssl_verify_identity": True
-            }
-
-            st.success("Connected successfully to TiDB!")
-
-        except Exception as e:
-            st.error(f"Connection failed: {e}")
-
     if st.session_state.db_config:
 
-        st.success("TiDB Connected")
+        if CA_CERTIFICATE.exists():
+            st.success("TiDB credentials loaded")
+        else:
+            st.error("CA certificate is missing from repository")
 
         if st.button("Disconnect"):
-
             st.session_state.db_config = None
             st.rerun()
+
+    else:
+        st.error("Database credentials not configured")
+        st.caption("Configure [tidb] in Streamlit Cloud Secrets.")
 
     st.divider()
 
@@ -134,7 +94,12 @@ with st.sidebar:
 def get_connection():
 
     if not st.session_state.db_config:
-        raise RuntimeError("Please connect to TiDB first.")
+        raise RuntimeError("TiDB connection is not configured.")
+
+    if not CA_CERTIFICATE.exists():
+        raise FileNotFoundError(
+            f"CA certificate not found: {CA_CERTIFICATE}"
+        )
 
     return mysql.connector.connect(
         **st.session_state.db_config
@@ -146,7 +111,6 @@ def read(sql, params=()):
     connection = get_connection()
 
     try:
-
         cursor = connection.cursor()
         cursor.execute(sql, params)
 
@@ -156,7 +120,6 @@ def read(sql, params=()):
         return pd.DataFrame(rows, columns=columns)
 
     finally:
-
         connection.close()
 
 
@@ -165,16 +128,13 @@ def execute(sql, params=()):
     connection = get_connection()
 
     try:
-
         cursor = connection.cursor()
         cursor.execute(sql, params)
-
         connection.commit()
 
         return cursor.rowcount
 
     finally:
-
         connection.close()
 
 
@@ -329,7 +289,6 @@ def employees():
                         st.rerun()
 
                     else:
-
                         st.error("Enter employee name.")
 
     st.subheader("All Employees")
@@ -454,7 +413,6 @@ def employees():
                         st.rerun()
 
                     else:
-
                         st.error("Employee name cannot be empty.")
 
         confirm = st.checkbox(
@@ -509,7 +467,6 @@ def departments():
                 st.rerun()
 
             else:
-
                 st.error("Enter department name.")
 
     df = get_departments()
@@ -562,7 +519,6 @@ def departments():
                 st.rerun()
 
             else:
-
                 st.error("Department name cannot be empty.")
 
         if col2.button("Delete Department"):
@@ -1066,7 +1022,7 @@ def leave_requests():
 if not st.session_state.db_config:
 
     st.info(
-        "Connect to TiDB using the sidebar to load your dashboard."
+        "Configure your TiDB credentials in Streamlit Cloud Secrets."
     )
 
 else:
@@ -1074,29 +1030,23 @@ else:
     try:
 
         if page == "Dashboard":
-
             dashboard()
 
         elif page == "Employees":
-
             employees()
 
         elif page == "Departments":
-
             departments()
 
         elif page == "Attendance":
-
             attendance()
 
         elif page == "Salary":
-
             salary()
 
         elif page == "Leave Requests":
-
             leave_requests()
 
     except Exception as e:
 
-        st.error(f"Error: {e}")
+        st.error(f"Application error: {e}")
