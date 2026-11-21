@@ -1,3 +1,4 @@
+
 # 🏢 Employee Payroll & Attendance Management System
 
 **A database-driven employee management application built with Python, Streamlit and TiDB.**
@@ -15,13 +16,19 @@
 
 🚀 **[Launch Employee Payroll & Attendance Management System](https://employee-payroll-attendance-system-zvtzscqdpx63ohdgvwoaby.streamlit.app/)**
 
+Explore the application and its employee management features.
+
+---
+
 ## 📌 Project Overview
 
-The Employee Payroll & Attendance Management System is a web-based application designed to simplify employee administration and management.
+The **Employee Payroll & Attendance Management System** is a web-based application designed to simplify employee administration and management.
 
-It provides a centralized platform to manage employee details, departments, attendance records, salary information and leave requests.
+It provides a centralized platform to manage employee details, departments, attendance records, salary information, and leave requests.
 
-The application is developed using Python and Streamlit, with a MySQL-compatible TiDB database.
+The application is developed using Python and Streamlit, with a MySQL-compatible TiDB database for storing and managing information.
+
+---
 
 ## ✨ Key Features
 
@@ -33,20 +40,20 @@ The application is developed using Python and Streamlit, with a MySQL-compatible
 - Employee directory
 
 ### 👥 Employee Management
-- Add employees
+- Add new employees
 - View employee records
 - Update employee information
-- Delete employees
+- Delete employee records
 - Search employees
 
 ### 🏢 Department Management
 - Add departments
-- View departments
-- Update department details
+- View department details
+- Update department information
 - Delete departments
 
 ### 📅 Attendance Management
-- Record attendance
+- Record employee attendance
 - Track present and absent employees
 - Update attendance records
 - View attendance history
@@ -65,17 +72,21 @@ The application is developed using Python and Streamlit, with a MySQL-compatible
 - Approve or reject requests
 - Delete leave records
 
+---
+
 ## 🛠️ Technology Stack
 
 | Technology | Purpose |
 |---|---|
-| Python | Backend programming |
+| Python 3.12 | Backend programming |
 | Streamlit | Web application interface |
 | Pandas | Data processing |
 | MySQL Connector | Database connectivity |
 | TiDB Cloud | Cloud database |
 | GitHub | Version control |
-| Streamlit Community Cloud | Deployment |
+| Streamlit Community Cloud | Application deployment |
+
+---
 
 ## 🗂️ Project Structure
 
@@ -86,72 +97,87 @@ Employee-Payroll-Attendance-System/
 ├── database.py
 ├── requirements.txt
 ├── isrgrootx1.pem
+│
 ├── database/
+│
 ├── .devcontainer/
 ├── .gitignore
 └── README.md
 ```
 
+---
+
 ## ⚙️ Installation and Setup
 
-### 1. Clone the repository
+Follow these steps to run the project locally.
+
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/CodeHub010/Employee-Payroll-Attendance-System.git
 ```
 
-### 2. Navigate to the project
+### 2. Navigate to the Project Directory
 
 ```bash
 cd Employee-Payroll-Attendance-System
 ```
 
-### 3. Create a virtual environment
+### 3. Create a Virtual Environment
 
 ```bash
 py -m venv venv
 ```
 
-### 4. Activate the virtual environment
+### 4. Activate the Virtual Environment
 
 ```bash
 venv\Scripts\activate
 ```
 
-### 5. Install dependencies
+### 5. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 6. Run the application
+### 6. Run the Application
 
 ```bash
 streamlit run app.py
 ```
 
+The application will open in your browser.
+
+---
+
 ## 🗄️ Database Design
 
-The application uses the following database tables:
+The application uses a relational database hosted on TiDB Cloud.
 
-| Table | Description |
+### Database Tables
+
+| Table Name | Description |
 |---|---|
-| employees | Employee information |
-| department | Department details |
-| attendance | Attendance records |
-| salary_records | Employee salary details |
-| leave_requests | Leave information |
+| `employees` | Stores employee information |
+| `department` | Stores department details |
+| `attendance` | Maintains employee attendance records |
+| `salary_records` | Stores employee salary details |
+| `leave_requests` | Maintains employee leave information |
 
-Database view:
+### Database View
+
 - `it_employee`
+
+---
 
 ## 🔐 Database Configuration
 
-The cloud application uses TiDB Cloud with SSL-secured connectivity.
+The application uses TiDB Cloud with SSL-secured database connectivity.
 
-Database credentials are configured using Streamlit Secrets.
+Database credentials are configured through Streamlit Secrets.
 
-Example:
+Example configuration:
 
 ```toml
 [tidb]
@@ -160,24 +186,32 @@ user = "YOUR_TIDB_USERNAME"
 password = "YOUR_TIDB_PASSWORD"
 ```
 
-Never commit actual database passwords or private credentials to GitHub.
+**Important:** Never upload actual database credentials, passwords, or private configuration files to GitHub.
+
+---
 
 ## ☁️ Deployment
 
-Deployed using Streamlit Community Cloud.
+The application is deployed using **Streamlit Community Cloud**.
 
-- GitHub for source code management
-- Streamlit Community Cloud for hosting
-- TiDB Cloud for database hosting
+| Platform | Purpose |
+|---|---|
+| GitHub | Source code hosting |
+| Streamlit Community Cloud | Application hosting |
+| TiDB Cloud | Cloud database hosting |
+
+---
 
 ## 🎯 Project Objectives
 
-- Implement CRUD operations.
+- Implement database CRUD operations.
 - Understand relational database management.
 - Integrate Python with SQL databases.
 - Build an interactive web application.
 - Implement cloud database connectivity.
-- Deploy a Python application.
+- Deploy a Python-based application.
+
+---
 
 ## 🚀 Future Enhancements
 
@@ -189,11 +223,15 @@ Deployed using Streamlit Community Cloud.
 - Excel and PDF report exports
 - Email notifications
 
+---
+
 ## 👨‍💻 Author
 
 **CodeHub010**
 
 GitHub: [@CodeHub010](https://github.com/CodeHub010)
+
+---
 
 ## 📂 Repository
 
@@ -201,6 +239,6 @@ GitHub: [@CodeHub010](https://github.com/CodeHub010)
 
 ---
 
-⭐ If you find this project useful, consider giving it a star!
+⭐ If you find this project useful, consider giving the repository a star!
 
 **Built with ❤️ using Python, Streamlit and TiDB.**
