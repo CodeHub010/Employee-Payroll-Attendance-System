@@ -1,81 +1,69 @@
 # 🏢 Employee Payroll & Attendance Management System
 
-<p align="center">
-  A database-driven employee management application built with Python, Streamlit and TiDB.
-</p>
+**A database-driven employee management application built with Python, Streamlit and TiDB.**
 
-<p align="center">
-  <a href="YOUR_STREAMLIT_APP_URL">
-    <img src="https://img.shields.io/badge/🚀_LIVE_DEMO-Open_Application-success?style=for-the-badge" alt="Live Demo">
-  </a>
-</p>
+[![Live Demo](https://img.shields.io/badge/🚀_LIVE_DEMO-Open_Application-success?style=for-the-badge)](YOUR_STREAMLIT_APP_URL)
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-3.12-blue?logo=python" alt="Python">
-  <img src="https://img.shields.io/badge/Framework-Streamlit-FF4B4B?logo=streamlit" alt="Streamlit">
-  <img src="https://img.shields.io/badge/Database-TiDB-4479A1?logo=mysql" alt="TiDB">
-  <img src="https://img.shields.io/badge/Status-Active-success" alt="Status">
-</p>
+![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python)
+![Streamlit](https://img.shields.io/badge/Framework-Streamlit-FF4B4B?logo=streamlit)
+![TiDB](https://img.shields.io/badge/Database-TiDB-4479A1?logo=mysql)
+![Status](https://img.shields.io/badge/Status-Active-success)
 
 ---
 
 ## 🌐 Live Demo
 
-**Explore the deployed application:**
-
-🔗 [Launch Employee Payroll & Attendance Management System](YOUR_STREAMLIT_APP_URL)
+🚀 **[Launch Employee Payroll & Attendance Management System](YOUR_STREAMLIT_APP_URL)**
 
 ## 📌 Project Overview
 
-The **Employee Payroll & Attendance Management System** is a web-based application designed to simplify employee administration and management.
+The Employee Payroll & Attendance Management System is a web-based application designed to simplify employee administration and management.
 
 It provides a centralized platform to manage employee details, departments, attendance records, salary information and leave requests.
 
-The application is developed using Python and Streamlit, with a MySQL-compatible TiDB database for storing and managing information.
+The application is developed using Python and Streamlit, with a MySQL-compatible TiDB database.
 
 ## ✨ Key Features
 
 ### 📊 Dashboard
-- Overview of total employees.
-- Department statistics.
-- Attendance record counts.
-- Salary record counts.
-- Leave request statistics.
-- Employee directory.
+- Total employee statistics
+- Department statistics
+- Attendance and salary record counts
+- Leave request statistics
+- Employee directory
 
 ### 👥 Employee Management
-- Add new employees.
-- View employee records.
-- Update employee information.
-- Delete employee records.
-- Search employees.
+- Add employees
+- View employee records
+- Update employee information
+- Delete employees
+- Search employees
 
 ### 🏢 Department Management
-- Add departments.
-- View department information.
-- Update department details.
-- Delete departments.
+- Add departments
+- View departments
+- Update department details
+- Delete departments
 
 ### 📅 Attendance Management
-- Record employee attendance.
-- Track present and absent employees.
-- Update attendance records.
-- View attendance history.
-- Delete attendance records.
+- Record attendance
+- Track present and absent employees
+- Update attendance records
+- View attendance history
 
 ### 💰 Salary Management
-- Add employee salary records.
-- Manage basic salary.
-- Record allowances and deductions.
-- Calculate net salary.
-- Update and delete salary records.
+- Add salary records
+- Manage basic salary
+- Record allowances and deductions
+- Calculate net salary
+- Update and delete salary records
 
 ### 📝 Leave Request Management
-- Create leave requests.
-- View employee leave records.
-- Update leave request status.
-- Approve or reject requests.
-- Delete leave records.
+- Create leave requests
+- View leave records
+- Update leave status
+- Approve or reject requests
+- Delete leave records
 
 ## 🛠️ Technology Stack
 
@@ -83,12 +71,11 @@ The application is developed using Python and Streamlit, with a MySQL-compatible
 |---|---|
 | Python | Backend programming |
 | Streamlit | Web application interface |
-| Pandas | Data handling and processing |
+| Pandas | Data processing |
 | MySQL Connector | Database connectivity |
-| MySQL | Relational database compatibility |
-| TiDB Cloud | Cloud database hosting |
-| GitHub | Version control and source code hosting |
-| Streamlit Community Cloud | Application deployment |
+| TiDB Cloud | Cloud database |
+| GitHub | Version control |
+| Streamlit Community Cloud | Deployment |
 
 ## 🗂️ Project Structure
 
@@ -99,38 +86,13 @@ Employee-Payroll-Attendance-System/
 ├── database.py
 ├── requirements.txt
 ├── isrgrootx1.pem
-│
 ├── database/
-│
 ├── .devcontainer/
-│
 ├── .gitignore
 └── README.md
 ```
 
-## 🗄️ Database Design
-
-The application uses a relational database structure.
-
-### Main Tables
-
-| Table | Description |
-|---|---|
-| `employees` | Stores employee information |
-| `department` | Stores department details |
-| `attendance` | Stores attendance records |
-| `salary_records` | Stores employee salary information |
-| `leave_requests` | Stores leave request information |
-
-### Database View
-
-- `it_employee` – Existing database view.
-
-The database uses relational constraints to maintain data consistency between employees and their associated records.
-
 ## ⚙️ Installation and Setup
-
-Follow these steps to run the project locally.
 
 ### 1. Clone the repository
 
@@ -138,7 +100,7 @@ Follow these steps to run the project locally.
 git clone https://github.com/CodeHub010/Employee-Payroll-Attendance-System.git
 ```
 
-### 2. Navigate to the project directory
+### 2. Navigate to the project
 
 ```bash
 cd Employee-Payroll-Attendance-System
@@ -150,7 +112,7 @@ cd Employee-Payroll-Attendance-System
 py -m venv venv
 ```
 
-### 4. Activate the virtual environment
+### 4. Activate the environment
 
 ```bash
 venv\Scripts\activate
@@ -168,17 +130,28 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The application will open in your browser.
+## 🗄️ Database Design
+
+The application uses the following database tables:
+
+| Table | Description |
+|---|---|
+| employees | Employee information |
+| department | Department details |
+| attendance | Attendance records |
+| salary_records | Employee salary details |
+| leave_requests | Leave information |
+
+Database view:
+- `it_employee`
 
 ## 🔐 Database Configuration
 
-The application supports MySQL-compatible database connectivity.
+The cloud application uses TiDB Cloud with SSL-secured connectivity.
 
-For cloud deployment, the application uses TiDB Cloud with SSL certificate verification.
+Database credentials are configured using Streamlit Secrets.
 
-Database credentials should be configured securely using Streamlit Secrets.
-
-Example configuration:
+Example:
 
 ```toml
 [tidb]
@@ -187,40 +160,34 @@ user = "YOUR_TIDB_USERNAME"
 password = "YOUR_TIDB_PASSWORD"
 ```
 
-**Security:** Never commit database passwords, private credentials or local secrets files to GitHub.
+Never commit actual database passwords or private credentials to GitHub.
 
 ## ☁️ Deployment
 
-The application is deployed using **Streamlit Community Cloud**.
+Deployed using Streamlit Community Cloud.
 
-Deployment workflow:
-
-1. Maintain the source code in GitHub.
-2. Connect the GitHub repository to Streamlit Community Cloud.
-3. Select `app.py` as the application entry point.
-4. Configure TiDB credentials through Streamlit Secrets.
-5. Deploy the application.
-6. Access the application using its public URL.
+- GitHub for source code management
+- Streamlit Community Cloud for hosting
+- TiDB Cloud for database hosting
 
 ## 🎯 Project Objectives
 
-- Develop a database-driven management application.
-- Implement Create, Read, Update and Delete (CRUD) operations.
+- Implement CRUD operations.
 - Understand relational database management.
-- Integrate Python applications with SQL databases.
-- Build an interactive web interface using Streamlit.
+- Integrate Python with SQL databases.
+- Build an interactive web application.
 - Implement cloud database connectivity.
-- Deploy a Python application using Streamlit Community Cloud.
+- Deploy a Python application.
 
 ## 🚀 Future Enhancements
 
-- Employee login and authentication.
-- Role-based access control.
-- Automated monthly payroll processing.
-- Attendance analytics and reporting.
-- Salary slip generation.
-- Excel and PDF report exports.
-- Email notifications for leave requests.
+- Employee authentication
+- Role-based access control
+- Automated payroll processing
+- Attendance analytics
+- Salary slip generation
+- Excel and PDF report exports
+- Email notifications
 
 ## 👨‍💻 Author
 
@@ -234,10 +201,6 @@ GitHub: [@CodeHub010](https://github.com/CodeHub010)
 
 ---
 
-<p align="center">
-  ⭐ If you find this project useful, consider giving it a star!
-</p>
+⭐ If you find this project useful, consider giving it a star!
 
-<p align="center">
-  Built with ❤️ using Python, Streamlit and TiDB.
-</p>
+**Built with ❤️ using Python, Streamlit and TiDB.**
