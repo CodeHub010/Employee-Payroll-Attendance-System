@@ -2,18 +2,18 @@
 
 **A database-driven employee management application built with Python, Streamlit and TiDB.**
 
-[![Live Demo](https://img.shields.io/badge/🚀_LIVE_DEMO-Open_Application-success?style=for-the-badge)](YOUR_STREAMLIT_APP_URL)
+[![🚀 Live Demo](https://img.shields.io/badge/🚀_LIVE_DEMO-Open_Application-success?style=for-the-badge)](https://employee-payroll-attendance-system-zvtzscqdpx63ohdgvwoaby.streamlit.app/)
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python)
 ![Streamlit](https://img.shields.io/badge/Framework-Streamlit-FF4B4B?logo=streamlit)
 ![TiDB](https://img.shields.io/badge/Database-TiDB-4479A1?logo=mysql)
-![Status](https://img.shields.io/badge/Status-Active-success)
+![Status](https://img.shields.io/badge/Status-Deployed-success)
 
 ---
 
 ## 🌐 Live Demo
 
-🚀 **[Launch Employee Payroll & Attendance Management System](YOUR_STREAMLIT_APP_URL)**
+🚀 **[Launch Employee Payroll & Attendance Management System](https://employee-payroll-attendance-system-zvtzscqdpx63ohdgvwoaby.streamlit.app/)**
 
 ## 📌 Project Overview
 
@@ -112,7 +112,7 @@ cd Employee-Payroll-Attendance-System
 py -m venv venv
 ```
 
-### 4. Activate the environment
+### 4. Activate the virtual environment
 
 ```bash
 venv\Scripts\activate
