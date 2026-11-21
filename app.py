@@ -1,9 +1,10 @@
-
 import streamlit as st
 import pandas as pd
 import mysql.connector
 
-# ---------------- PAGE CONFIG ----------------
+# =====================================================
+# PAGE CONFIGURATION
+# =====================================================
 
 st.set_page_config(
     page_title="Employee Management System",
@@ -11,51 +12,103 @@ st.set_page_config(
     layout="wide"
 )
 
-# ---------------- DATABASE CONNECTION ----------------
+# =====================================================
+# DATABASE CONNECTION
+# =====================================================
+
+from pathlib import Path
 
 if "db_config" not in st.session_state:
-    st.session_state.db_config = None
+
+    st.session_state.db_config = {
+        "host": st.secrets["tidb"]["host"],
+        "port": 4000,
+        "user": st.secrets["tidb"]["user"],
+        "password": st.secrets["tidb"]["password"],
+        "database": "employee_management",
+        "ssl_ca": str(Path(__file__).parent / "isrgrootx1.pem"),
+        "ssl_verify_cert": True,
+        "ssl_verify_identity": True
+    } if "tidb" in st.secrets else None
 
 with st.sidebar:
+
     st.title("🏢 Employee Manager")
     st.subheader("Database Connection")
 
-    with st.form("connection_form_2"):
-        host = st.text_input("Host", "localhost")
-        port = st.number_input("Port", value=3306)
-        user = st.text_input("Username", "root")
-        password = st.text_input("MySQL Password", type="password")
-        database = st.text_input("Database", "employee_management")
+    with st.form("connection_form"):
 
-        connect = st.form_submit_button("Connect to MySQL")
+        host = st.text_input(
+            "Host",
+            "gateway01.ap-northeast-1.prod.aws.tidbcloud.com"
+        )
+
+        port = st.number_input(
+            "Port",
+            value=4000
+        )
+
+        user = st.text_input(
+            "Username",
+            "1NUL8yNePuqma3c.root"
+        )
+
+        password = st.text_input(
+            "TiDB Password",
+            type="password"
+        )
+
+        database = st.text_input(
+            "Database",
+            "employee_management"
+        )
+
+        ssl_ca = st.text_input(
+            "CA Certificate Path",
+            r"C:\Users\Vishal\Downloads\isrgrootx1.pem"
+        )
+
+        connect = st.form_submit_button("Connect to TiDB")
 
     if connect:
+
         try:
-            test = mysql.connector.connect(
+
+            connection = mysql.connector.connect(
                 host=host,
                 port=int(port),
                 user=user,
                 password=password,
-                database=database
+                database=database,
+                ssl_ca=ssl_ca,
+                ssl_verify_cert=True,
+                ssl_verify_identity=True
             )
-            test.close()
+
+            connection.close()
 
             st.session_state.db_config = {
                 "host": host,
                 "port": int(port),
                 "user": user,
                 "password": password,
-                "database": database
+                "database": database,
+                "ssl_ca": ssl_ca,
+                "ssl_verify_cert": True,
+                "ssl_verify_identity": True
             }
 
-            st.success("Connected successfully!")
+            st.success("Connected successfully to TiDB!")
+
         except Exception as e:
             st.error(f"Connection failed: {e}")
 
     if st.session_state.db_config:
-        st.success("MySQL Connected")
+
+        st.success("TiDB Connected")
 
         if st.button("Disconnect"):
+
             st.session_state.db_config = None
             st.rerun()
 
@@ -74,48 +127,85 @@ with st.sidebar:
     )
 
 
-# ---------------- DATABASE FUNCTIONS ----------------
+# =====================================================
+# DATABASE HELPER FUNCTIONS
+# =====================================================
 
 def get_connection():
-    if not st.session_state.db_config:
-        raise RuntimeError("Connect to MySQL first.")
 
-    return mysql.connector.connect(**st.session_state.db_config)
+    if not st.session_state.db_config:
+        raise RuntimeError("Please connect to TiDB first.")
+
+    return mysql.connector.connect(
+        **st.session_state.db_config
+    )
 
 
 def read(sql, params=()):
-    conn = get_connection()
+
+    connection = get_connection()
+
     try:
-        return pd.read_sql(sql, conn, params=params)
+
+        cursor = connection.cursor()
+        cursor.execute(sql, params)
+
+        rows = cursor.fetchall()
+        columns = [column[0] for column in cursor.description]
+
+        return pd.DataFrame(rows, columns=columns)
+
     finally:
-        conn.close()
+
+        connection.close()
 
 
 def execute(sql, params=()):
-    conn = get_connection()
+
+    connection = get_connection()
+
     try:
-        cursor = conn.cursor()
+
+        cursor = connection.cursor()
         cursor.execute(sql, params)
-        conn.commit()
+
+        connection.commit()
+
         return cursor.rowcount
+
     finally:
-        conn.close()
+
+        connection.close()
 
 
 def get_employees():
-    return read("SELECT emp_id, name FROM employees ORDER BY name")
+
+    return read("""
+        SELECT emp_id, name
+        FROM employees
+        ORDER BY name
+    """)
 
 
 def get_departments():
-    return read("SELECT dept_id, dept_name FROM department ORDER BY dept_name")
+
+    return read("""
+        SELECT dept_id, dept_name
+        FROM department
+        ORDER BY dept_name
+    """)
 
 
-# ---------------- MAIN TITLE ----------------
+# =====================================================
+# MAIN TITLE
+# =====================================================
 
 st.title("Employee Payroll & Attendance Management")
 
 
-# ---------------- DASHBOARD ----------------
+# =====================================================
+# DASHBOARD
+# =====================================================
 
 def dashboard():
 
@@ -129,100 +219,165 @@ def dashboard():
         ("Leave Requests", "SELECT COUNT(*) FROM leave_requests")
     ]
 
-    cols = st.columns(5)
+    columns = st.columns(5)
 
-    for col, (label, sql) in zip(cols, data):
-        count = read(sql).iloc[0, 0]
-        col.metric(label, count)
+    for column, (label, sql) in zip(columns, data):
+
+        result = read(sql)
+        count = result.iloc[0, 0]
+
+        column.metric(label, count)
 
     st.divider()
 
     st.subheader("Employee Directory")
 
-    search = st.text_input("Search employee by name")
+    search = st.text_input(
+        "Search employee by name",
+        key="dashboard_search"
+    )
 
     if search:
+
         df = read("""
-            SELECT e.emp_id, e.name, e.salary, d.dept_name
+            SELECT
+                e.emp_id,
+                e.name,
+                e.salary,
+                d.dept_name
             FROM employees e
-            LEFT JOIN department d ON e.dept_id = d.dept_id
+            LEFT JOIN department d
+                ON e.dept_id = d.dept_id
             WHERE e.name LIKE %s
             ORDER BY e.emp_id
         """, (f"%{search}%",))
+
     else:
+
         df = read("""
-            SELECT e.emp_id, e.name, e.salary, d.dept_name
+            SELECT
+                e.emp_id,
+                e.name,
+                e.salary,
+                d.dept_name
             FROM employees e
-            LEFT JOIN department d ON e.dept_id = d.dept_id
+            LEFT JOIN department d
+                ON e.dept_id = d.dept_id
             ORDER BY e.emp_id
         """)
 
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True
+    )
 
 
-# ---------------- EMPLOYEE MANAGEMENT ----------------
+# =====================================================
+# EMPLOYEE MANAGEMENT
+# =====================================================
 
 def employees():
 
     st.header("Employee Management")
 
-    departments = get_departments()
+    departments_df = get_departments()
 
     with st.expander("➕ Add New Employee"):
 
-        if departments.empty:
+        if departments_df.empty:
+
             st.warning("Add a department first.")
+
         else:
+
             with st.form("add_employee"):
 
                 name = st.text_input("Employee Name")
-                salary = st.number_input("Monthly Salary", min_value=0.0)
+
+                salary = st.number_input(
+                    "Monthly Salary",
+                    min_value=0.0
+                )
 
                 dept = st.selectbox(
                     "Department",
-                    departments.dept_id,
-                    format_func=lambda x: departments.loc[
-                        departments.dept_id == x, "dept_name"
+                    departments_df["dept_id"].tolist(),
+                    format_func=lambda x: departments_df.loc[
+                        departments_df["dept_id"] == x,
+                        "dept_name"
                     ].iloc[0]
                 )
 
-                if st.form_submit_button("Add Employee"):
+                submitted = st.form_submit_button("Add Employee")
+
+                if submitted:
 
                     if name.strip():
+
                         execute("""
-                            INSERT INTO employees (name, salary, dept_id)
+                            INSERT INTO employees
+                                (name, salary, dept_id)
                             VALUES (%s, %s, %s)
-                        """, (name.strip(), salary, int(dept)))
+                        """, (
+                            name.strip(),
+                            salary,
+                            int(dept)
+                        ))
 
                         st.success("Employee added successfully!")
                         st.rerun()
+
                     else:
+
                         st.error("Enter employee name.")
 
     st.subheader("All Employees")
 
-    search = st.text_input("Search employees", key="employee_search")
+    search = st.text_input(
+        "Search employees",
+        key="employee_search"
+    )
 
     if search:
+
         df = read("""
-            SELECT e.emp_id, e.name, e.salary, d.dept_name
+            SELECT
+                e.emp_id,
+                e.name,
+                e.salary,
+                d.dept_name
             FROM employees e
-            LEFT JOIN department d ON e.dept_id = d.dept_id
+            LEFT JOIN department d
+                ON e.dept_id = d.dept_id
             WHERE e.name LIKE %s
+            ORDER BY e.emp_id
         """, (f"%{search}%",))
+
     else:
+
         df = read("""
-            SELECT e.emp_id, e.name, e.salary, d.dept_name
+            SELECT
+                e.emp_id,
+                e.name,
+                e.salary,
+                d.dept_name
             FROM employees e
-            LEFT JOIN department d ON e.dept_id = d.dept_id
+            LEFT JOIN department d
+                ON e.dept_id = d.dept_id
             ORDER BY e.emp_id
         """)
 
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True
+    )
 
     all_employees = read("""
         SELECT emp_id, name, salary, dept_id
-        FROM employees ORDER BY emp_id
+        FROM employees
+        ORDER BY emp_id
     """)
 
     if not all_employees.empty:
@@ -231,29 +386,34 @@ def employees():
 
         emp_id = st.selectbox(
             "Select Employee",
-            all_employees.emp_id,
+            all_employees["emp_id"].tolist(),
             format_func=lambda x: (
-                f"{x} - {all_employees.loc[all_employees.emp_id == x, 'name'].iloc[0]}"
+                f"{x} - "
+                f"{all_employees.loc[all_employees.emp_id == x, 'name'].iloc[0]}"
             )
         )
 
         row = all_employees.loc[
-            all_employees.emp_id == emp_id
+            all_employees["emp_id"] == emp_id
         ].iloc[0]
 
-        if not departments.empty:
+        if not departments_df.empty:
 
-            dept_ids = departments.dept_id.tolist()
+            dept_ids = departments_df["dept_id"].tolist()
 
             current_dept = (
-                int(row.dept_id)
-                if pd.notna(row.dept_id) and int(row.dept_id) in dept_ids
+                int(row["dept_id"])
+                if pd.notna(row["dept_id"])
+                and int(row["dept_id"]) in dept_ids
                 else dept_ids[0]
             )
 
             with st.form("edit_employee"):
 
-                new_name = st.text_input("Name", str(row["name"]))
+                new_name = st.text_input(
+                    "Name",
+                    str(row["name"])
+                )
 
                 new_salary = st.number_input(
                     "Monthly Salary",
@@ -265,17 +425,23 @@ def employees():
                     "Department",
                     dept_ids,
                     index=dept_ids.index(current_dept),
-                    format_func=lambda x: departments.loc[
-                        departments.dept_id == x, "dept_name"
+                    format_func=lambda x: departments_df.loc[
+                        departments_df["dept_id"] == x,
+                        "dept_name"
                     ].iloc[0]
                 )
 
-                if st.form_submit_button("Update Employee"):
+                submitted = st.form_submit_button("Update Employee")
+
+                if submitted:
 
                     if new_name.strip():
+
                         execute("""
                             UPDATE employees
-                            SET name=%s, salary=%s, dept_id=%s
+                            SET name=%s,
+                                salary=%s,
+                                dept_id=%s
                             WHERE emp_id=%s
                         """, (
                             new_name.strip(),
@@ -287,12 +453,21 @@ def employees():
                         st.success("Employee updated!")
                         st.rerun()
 
-            confirm = st.checkbox(
-                "Confirm employee deletion",
-                key="delete_employee_confirm"
-            )
+                    else:
 
-            if st.button("Delete Employee", disabled=not confirm):
+                        st.error("Employee name cannot be empty.")
+
+        confirm = st.checkbox(
+            "Confirm employee deletion",
+            key="delete_employee_confirm"
+        )
+
+        if st.button(
+            "Delete Employee",
+            disabled=not confirm
+        ):
+
+            try:
 
                 execute(
                     "DELETE FROM employees WHERE emp_id=%s",
@@ -302,8 +477,14 @@ def employees():
                 st.success("Employee deleted!")
                 st.rerun()
 
+            except mysql.connector.Error as e:
 
-# ---------------- DEPARTMENT MANAGEMENT ----------------
+                st.error(f"Unable to delete employee: {e}")
+
+
+# =====================================================
+# DEPARTMENT MANAGEMENT
+# =====================================================
 
 def departments():
 
@@ -313,67 +494,100 @@ def departments():
 
         name = st.text_input("Department Name")
 
-        if st.form_submit_button("Add Department"):
+        submitted = st.form_submit_button("Add Department")
+
+        if submitted:
 
             if name.strip():
-                execute(
-                    "INSERT INTO department (dept_name) VALUES (%s)",
-                    (name.strip(),)
-                )
+
+                execute("""
+                    INSERT INTO department (dept_name)
+                    VALUES (%s)
+                """, (name.strip(),))
 
                 st.success("Department added!")
                 st.rerun()
+
             else:
+
                 st.error("Enter department name.")
 
     df = get_departments()
 
     st.subheader("All Departments")
-    st.dataframe(df, use_container_width=True, hide_index=True)
+
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True
+    )
 
     if not df.empty:
 
         dept_id = st.selectbox(
             "Select Department",
-            df.dept_id,
+            df["dept_id"].tolist(),
             format_func=lambda x: (
-                f"{x} - {df.loc[df.dept_id == x, 'dept_name'].iloc[0]}"
+                f"{x} - "
+                f"{df.loc[df.dept_id == x, 'dept_name'].iloc[0]}"
             )
         )
 
         current = df.loc[
-            df.dept_id == dept_id, "dept_name"
+            df["dept_id"] == dept_id,
+            "dept_name"
         ].iloc[0]
 
-        new_name = st.text_input("Edit Department Name", current)
+        new_name = st.text_input(
+            "Edit Department Name",
+            current
+        )
 
-        c1, c2 = st.columns(2)
+        col1, col2 = st.columns(2)
 
-        if c1.button("Update Department"):
+        if col1.button("Update Department"):
 
             if new_name.strip():
-                execute(
-                    "UPDATE department SET dept_name=%s WHERE dept_id=%s",
-                    (new_name.strip(), int(dept_id))
-                )
+
+                execute("""
+                    UPDATE department
+                    SET dept_name=%s
+                    WHERE dept_id=%s
+                """, (
+                    new_name.strip(),
+                    int(dept_id)
+                ))
+
                 st.success("Department updated!")
                 st.rerun()
 
-        if c2.button("Delete Department"):
+            else:
+
+                st.error("Department name cannot be empty.")
+
+        if col2.button("Delete Department"):
 
             try:
-                execute(
-                    "DELETE FROM department WHERE dept_id=%s",
-                    (int(dept_id),)
-                )
+
+                execute("""
+                    DELETE FROM department
+                    WHERE dept_id=%s
+                """, (int(dept_id),))
+
                 st.success("Department deleted!")
                 st.rerun()
 
             except mysql.connector.Error:
-                st.error("This department is assigned to employees. Reassign them first.")
+
+                st.error(
+                    "This department is assigned to employees. "
+                    "Reassign them first."
+                )
 
 
-# ---------------- ATTENDANCE MANAGEMENT ----------------
+# =====================================================
+# ATTENDANCE MANAGEMENT
+# =====================================================
 
 def attendance():
 
@@ -382,6 +596,7 @@ def attendance():
     employees_list = get_employees()
 
     if employees_list.empty:
+
         st.warning("Add employees first.")
         return
 
@@ -389,9 +604,10 @@ def attendance():
 
         emp = st.selectbox(
             "Employee",
-            employees_list.emp_id,
+            employees_list["emp_id"].tolist(),
             format_func=lambda x: employees_list.loc[
-                employees_list.emp_id == x, "name"
+                employees_list["emp_id"] == x,
+                "name"
             ].iloc[0]
         )
 
@@ -404,16 +620,23 @@ def attendance():
 
         remarks = st.text_input("Remarks")
 
-        if st.form_submit_button("Save Attendance"):
+        submitted = st.form_submit_button("Save Attendance")
+
+        if submitted:
 
             execute("""
                 INSERT INTO attendance
-                (emp_id, attendance_date, status, remarks)
+                    (emp_id, attendance_date, status, remarks)
                 VALUES (%s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE
-                status=VALUES(status),
-                remarks=VALUES(remarks)
-            """, (int(emp), day, status, remarks.strip() or None))
+                    status=VALUES(status),
+                    remarks=VALUES(remarks)
+            """, (
+                int(emp),
+                day,
+                status,
+                remarks.strip() or None
+            ))
 
             st.success("Attendance saved!")
             st.rerun()
@@ -421,61 +644,103 @@ def attendance():
     st.subheader("Attendance Records")
 
     df = read("""
-        SELECT a.attendance_id, e.name, a.attendance_date,
-               a.status, a.remarks
+        SELECT
+            a.attendance_id,
+            e.name,
+            a.attendance_date,
+            a.status,
+            a.remarks
         FROM attendance a
-        JOIN employees e ON a.emp_id=e.emp_id
+        JOIN employees e
+            ON a.emp_id = e.emp_id
         ORDER BY a.attendance_date DESC
     """)
 
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True
+    )
 
-    ids = read("SELECT attendance_id FROM attendance")
+    ids = read("""
+        SELECT attendance_id
+        FROM attendance
+        ORDER BY attendance_id
+    """)
 
     if not ids.empty:
 
-        aid = st.selectbox("Select Attendance ID", ids.attendance_id)
+        aid = st.selectbox(
+            "Select Attendance ID",
+            ids["attendance_id"].tolist()
+        )
 
-        row = read(
-            "SELECT * FROM attendance WHERE attendance_id=%s",
-            (int(aid),)
-        ).iloc[0]
+        row = read("""
+            SELECT *
+            FROM attendance
+            WHERE attendance_id=%s
+        """, (int(aid),)).iloc[0]
 
         with st.form("edit_attendance"):
 
+            statuses = [
+                "Present",
+                "Absent",
+                "Half Day",
+                "Leave"
+            ]
+
             new_status = st.selectbox(
                 "Edit Status",
-                ["Present", "Absent", "Half Day", "Leave"],
-                index=["Present", "Absent", "Half Day", "Leave"].index(row.status)
+                statuses,
+                index=statuses.index(row["status"])
             )
 
-            new_remarks = st.text_input("Edit Remarks", row.remarks or "")
+            new_remarks = st.text_input(
+                "Edit Remarks",
+                row["remarks"] or ""
+            )
 
-            if st.form_submit_button("Update Attendance"):
+            submitted = st.form_submit_button("Update Attendance")
+
+            if submitted:
 
                 execute("""
                     UPDATE attendance
-                    SET status=%s, remarks=%s
+                    SET status=%s,
+                        remarks=%s
                     WHERE attendance_id=%s
-                """, (new_status, new_remarks, int(aid)))
+                """, (
+                    new_status,
+                    new_remarks,
+                    int(aid)
+                ))
 
                 st.success("Attendance updated!")
                 st.rerun()
 
-        confirm = st.checkbox("Confirm attendance deletion", key="delete_att_confirm")
+        confirm = st.checkbox(
+            "Confirm attendance deletion",
+            key="delete_attendance_confirm"
+        )
 
-        if st.button("Delete Attendance", disabled=not confirm):
+        if st.button(
+            "Delete Attendance",
+            disabled=not confirm
+        ):
 
-            execute(
-                "DELETE FROM attendance WHERE attendance_id=%s",
-                (int(aid),)
-            )
+            execute("""
+                DELETE FROM attendance
+                WHERE attendance_id=%s
+            """, (int(aid),))
 
             st.success("Attendance deleted!")
             st.rerun()
 
 
-# ---------------- SALARY MANAGEMENT ----------------
+# =====================================================
+# SALARY MANAGEMENT
+# =====================================================
 
 def salary():
 
@@ -484,6 +749,7 @@ def salary():
     employees_list = get_employees()
 
     if employees_list.empty:
+
         st.warning("Add employees first.")
         return
 
@@ -491,28 +757,42 @@ def salary():
 
         emp = st.selectbox(
             "Employee",
-            employees_list.emp_id,
+            employees_list["emp_id"].tolist(),
             format_func=lambda x: employees_list.loc[
-                employees_list.emp_id == x, "name"
+                employees_list["emp_id"] == x,
+                "name"
             ].iloc[0]
         )
 
         month = st.date_input("Salary Month")
 
-        basic = st.number_input("Basic Salary", min_value=0.0)
-        allowance = st.number_input("Allowance", min_value=0.0)
-        deduction = st.number_input("Deduction", min_value=0.0)
+        basic = st.number_input(
+            "Basic Salary",
+            min_value=0.0
+        )
 
-        if st.form_submit_button("Save Salary"):
+        allowance = st.number_input(
+            "Allowance",
+            min_value=0.0
+        )
+
+        deduction = st.number_input(
+            "Deduction",
+            min_value=0.0
+        )
+
+        submitted = st.form_submit_button("Save Salary")
+
+        if submitted:
 
             execute("""
                 INSERT INTO salary_records
-                (emp_id, salary_month, basic_salary, allowance, deduction)
+                    (emp_id, salary_month, basic_salary, allowance, deduction)
                 VALUES (%s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE
-                basic_salary=VALUES(basic_salary),
-                allowance=VALUES(allowance),
-                deduction=VALUES(deduction)
+                    basic_salary=VALUES(basic_salary),
+                    allowance=VALUES(allowance),
+                    deduction=VALUES(deduction)
             """, (
                 int(emp),
                 month.replace(day=1),
@@ -527,72 +807,111 @@ def salary():
     st.subheader("Salary Records")
 
     df = read("""
-        SELECT s.salary_id, e.name, s.salary_month,
-               s.basic_salary, s.allowance, s.deduction,
-               (s.basic_salary + s.allowance - s.deduction) AS net_salary
+        SELECT
+            s.salary_id,
+            e.name,
+            s.salary_month,
+            s.basic_salary,
+            s.allowance,
+            s.deduction,
+            (
+                s.basic_salary
+                + s.allowance
+                - s.deduction
+            ) AS net_salary
         FROM salary_records s
-        JOIN employees e ON s.emp_id=e.emp_id
+        JOIN employees e
+            ON s.emp_id = e.emp_id
         ORDER BY s.salary_month DESC
     """)
 
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True
+    )
 
-    ids = read("SELECT salary_id FROM salary_records")
+    ids = read("""
+        SELECT salary_id
+        FROM salary_records
+        ORDER BY salary_id
+    """)
 
     if not ids.empty:
 
-        sid = st.selectbox("Select Salary Record", ids.salary_id)
+        sid = st.selectbox(
+            "Select Salary Record",
+            ids["salary_id"].tolist()
+        )
 
-        row = read(
-            "SELECT * FROM salary_records WHERE salary_id=%s",
-            (int(sid),)
-        ).iloc[0]
+        row = read("""
+            SELECT *
+            FROM salary_records
+            WHERE salary_id=%s
+        """, (int(sid),)).iloc[0]
 
         with st.form("edit_salary"):
 
             basic = st.number_input(
                 "Edit Basic Salary",
                 min_value=0.0,
-                value=float(row.basic_salary)
+                value=float(row["basic_salary"])
             )
 
             allowance = st.number_input(
                 "Edit Allowance",
                 min_value=0.0,
-                value=float(row.allowance)
+                value=float(row["allowance"])
             )
 
             deduction = st.number_input(
                 "Edit Deduction",
                 min_value=0.0,
-                value=float(row.deduction)
+                value=float(row["deduction"])
             )
 
-            if st.form_submit_button("Update Salary"):
+            submitted = st.form_submit_button("Update Salary")
+
+            if submitted:
 
                 execute("""
                     UPDATE salary_records
-                    SET basic_salary=%s, allowance=%s, deduction=%s
+                    SET basic_salary=%s,
+                        allowance=%s,
+                        deduction=%s
                     WHERE salary_id=%s
-                """, (basic, allowance, deduction, int(sid)))
+                """, (
+                    basic,
+                    allowance,
+                    deduction,
+                    int(sid)
+                ))
 
                 st.success("Salary updated!")
                 st.rerun()
 
-        confirm = st.checkbox("Confirm salary deletion", key="delete_salary_confirm")
+        confirm = st.checkbox(
+            "Confirm salary deletion",
+            key="delete_salary_confirm"
+        )
 
-        if st.button("Delete Salary", disabled=not confirm):
+        if st.button(
+            "Delete Salary",
+            disabled=not confirm
+        ):
 
-            execute(
-                "DELETE FROM salary_records WHERE salary_id=%s",
-                (int(sid),)
-            )
+            execute("""
+                DELETE FROM salary_records
+                WHERE salary_id=%s
+            """, (int(sid),))
 
             st.success("Salary record deleted!")
             st.rerun()
 
 
-# ---------------- LEAVE REQUESTS ----------------
+# =====================================================
+# LEAVE REQUEST MANAGEMENT
+# =====================================================
 
 def leave_requests():
 
@@ -601,6 +920,7 @@ def leave_requests():
     employees_list = get_employees()
 
     if employees_list.empty:
+
         st.warning("Add employees first.")
         return
 
@@ -608,13 +928,15 @@ def leave_requests():
 
         emp = st.selectbox(
             "Employee",
-            employees_list.emp_id,
+            employees_list["emp_id"].tolist(),
             format_func=lambda x: employees_list.loc[
-                employees_list.emp_id == x, "name"
+                employees_list["emp_id"] == x,
+                "name"
             ].iloc[0]
         )
 
         start = st.date_input("Start Date")
+
         end = st.date_input("End Date")
 
         reason = st.text_input("Reason")
@@ -624,18 +946,26 @@ def leave_requests():
             ["Pending", "Approved", "Rejected"]
         )
 
-        if st.form_submit_button("Add Leave Request"):
+        submitted = st.form_submit_button("Add Leave Request")
+
+        if submitted:
 
             if end < start:
+
                 st.error("End date cannot be before start date.")
+
             else:
 
                 execute("""
                     INSERT INTO leave_requests
-                    (emp_id, start_date, end_date, reason, status)
+                        (emp_id, start_date, end_date, reason, status)
                     VALUES (%s, %s, %s, %s, %s)
                 """, (
-                    int(emp), start, end, reason, status
+                    int(emp),
+                    start,
+                    end,
+                    reason,
+                    status
                 ))
 
                 st.success("Leave request added!")
@@ -644,84 +974,129 @@ def leave_requests():
     st.subheader("All Leave Requests")
 
     df = read("""
-        SELECT l.leave_id, e.name, l.start_date,
-               l.end_date, l.reason, l.status
+        SELECT
+            l.leave_id,
+            e.name,
+            l.start_date,
+            l.end_date,
+            l.reason,
+            l.status
         FROM leave_requests l
-        JOIN employees e ON l.emp_id=e.emp_id
+        JOIN employees e
+            ON l.emp_id = e.emp_id
         ORDER BY l.leave_id DESC
     """)
 
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True
+    )
 
-    ids = read("SELECT leave_id FROM leave_requests")
+    ids = read("""
+        SELECT leave_id
+        FROM leave_requests
+        ORDER BY leave_id
+    """)
 
     if not ids.empty:
 
-        lid = st.selectbox("Select Leave Request", ids.leave_id)
+        lid = st.selectbox(
+            "Select Leave Request",
+            ids["leave_id"].tolist()
+        )
 
-        current = read(
-            "SELECT status FROM leave_requests WHERE leave_id=%s",
-            (int(lid),)
-        ).iloc[0, 0]
+        current = read("""
+            SELECT status
+            FROM leave_requests
+            WHERE leave_id=%s
+        """, (int(lid),)).iloc[0, 0]
+
+        statuses = [
+            "Pending",
+            "Approved",
+            "Rejected"
+        ]
 
         status = st.selectbox(
             "Change Status",
-            ["Pending", "Approved", "Rejected"],
-            index=["Pending", "Approved", "Rejected"].index(current)
+            statuses,
+            index=statuses.index(current)
         )
 
-        c1, c2 = st.columns(2)
+        col1, col2 = st.columns(2)
 
-        if c1.button("Update Leave Status"):
+        if col1.button("Update Leave Status"):
 
-            execute(
-                "UPDATE leave_requests SET status=%s WHERE leave_id=%s",
-                (status, int(lid))
-            )
+            execute("""
+                UPDATE leave_requests
+                SET status=%s
+                WHERE leave_id=%s
+            """, (
+                status,
+                int(lid)
+            ))
 
             st.success("Leave status updated!")
             st.rerun()
 
-        confirm = c2.checkbox("Confirm deletion", key="delete_leave_confirm")
+        confirm = col2.checkbox(
+            "Confirm deletion",
+            key="delete_leave_confirm"
+        )
 
-        if c2.button("Delete Leave Request", disabled=not confirm):
+        if col2.button(
+            "Delete Leave Request",
+            disabled=not confirm
+        ):
 
-            execute(
-                "DELETE FROM leave_requests WHERE leave_id=%s",
-                (int(lid),)
-            )
+            execute("""
+                DELETE FROM leave_requests
+                WHERE leave_id=%s
+            """, (int(lid),))
 
             st.success("Leave request deleted!")
             st.rerun()
 
 
-# ---------------- PAGE ROUTING ----------------
+# =====================================================
+# PAGE ROUTING
+# =====================================================
 
 if not st.session_state.db_config:
 
-    st.info("Connect to MySQL using the sidebar to load your dashboard.")
+    st.info(
+        "Connect to TiDB using the sidebar to load your dashboard."
+    )
 
 else:
 
     try:
 
         if page == "Dashboard":
+
             dashboard()
 
         elif page == "Employees":
+
             employees()
 
         elif page == "Departments":
+
             departments()
 
         elif page == "Attendance":
+
             attendance()
 
         elif page == "Salary":
+
             salary()
 
         elif page == "Leave Requests":
+
             leave_requests()
 
     except Exception as e:
+
         st.error(f"Error: {e}")
