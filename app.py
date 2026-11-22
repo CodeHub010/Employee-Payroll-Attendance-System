@@ -14,12 +14,11 @@ st.set_page_config(
     layout="wide"
 )
 
-# =====================================================
-# TIDB CLOUD CONNECTION
-# =====================================================
-
 CA_CERTIFICATE = Path(__file__).parent / "isrgrootx1.pem"
 
+# =====================================================
+# TIDB CLOUD CONFIGURATION
+# =====================================================
 
 def load_database_config():
     try:
@@ -36,11 +35,8 @@ def load_database_config():
             "ssl_verify_identity": True
         }
 
-    except (KeyError, FileNotFoundError):
-        return None
-
     except Exception as e:
-        st.error(f"Unable to load database secrets: {e}")
+        st.error(f"Unable to load TiDB credentials: {e}")
         return None
 
 
@@ -62,11 +58,7 @@ with st.sidebar:
         if CA_CERTIFICATE.exists():
             st.success("TiDB credentials loaded")
         else:
-            st.error("CA certificate is missing from repository")
-
-        if st.button("Disconnect"):
-            st.session_state.db_config = None
-            st.rerun()
+            st.error("SSL certificate not found")
 
     else:
         st.error("Database credentials not configured")
@@ -98,7 +90,7 @@ def get_connection():
 
     if not CA_CERTIFICATE.exists():
         raise FileNotFoundError(
-            f"CA certificate not found: {CA_CERTIFICATE}"
+            f"SSL certificate not found: {CA_CERTIFICATE}"
         )
 
     return mysql.connector.connect(
@@ -134,8 +126,45 @@ def execute(sql, params=()):
 
         return cursor.rowcount
 
+    except Exception:
+        connection.rollback()
+        raise
+
     finally:
         connection.close()
+
+
+# =====================================================
+# MANUAL ID GENERATION FOR TIDB
+# =====================================================
+
+# These IDs are generated in Python because the existing
+# TiDB columns do not currently use AUTO_INCREMENT.
+
+ID_COLUMNS = {
+    "employees": "emp_id",
+    "department": "dept_id",
+    "attendance": "attendance_id",
+    "salary_records": "salary_id",
+    "leave_requests": "leave_id"
+}
+
+
+def get_next_id(table):
+
+    if table not in ID_COLUMNS:
+        raise ValueError("Invalid table for ID generation.")
+
+    id_column = ID_COLUMNS[table]
+
+    result = read(
+        f"""
+        SELECT COALESCE(MAX({id_column}), 0) + 1 AS next_id
+        FROM {table}
+        """
+    )
+
+    return int(result.iloc[0]["next_id"])
 
 
 def get_employees():
@@ -273,23 +302,32 @@ def employees():
 
                 if submitted:
 
-                    if name.strip():
+                    if not name.strip():
 
-                        execute("""
-                            INSERT INTO employees
-                                (name, salary, dept_id)
-                            VALUES (%s, %s, %s)
-                        """, (
-                            name.strip(),
-                            salary,
-                            int(dept)
-                        ))
-
-                        st.success("Employee added successfully!")
-                        st.rerun()
+                        st.error("Enter employee name.")
 
                     else:
-                        st.error("Enter employee name.")
+
+                        try:
+
+                            next_id = get_next_id("employees")
+
+                            execute("""
+                                INSERT INTO employees
+                                    (emp_id, name, salary, dept_id)
+                                VALUES (%s, %s, %s, %s)
+                            """, (
+                                next_id,
+                                name.strip(),
+                                salary,
+                                int(dept)
+                            ))
+
+                            st.success("Employee added successfully!")
+                            st.rerun()
+
+                        except Exception as e:
+                            st.error(f"Unable to add employee: {e}")
 
     st.subheader("All Employees")
 
@@ -456,18 +494,30 @@ def departments():
 
         if submitted:
 
-            if name.strip():
+            if not name.strip():
 
-                execute("""
-                    INSERT INTO department (dept_name)
-                    VALUES (%s)
-                """, (name.strip(),))
-
-                st.success("Department added!")
-                st.rerun()
+                st.error("Enter department name.")
 
             else:
-                st.error("Enter department name.")
+
+                try:
+
+                    next_id = get_next_id("department")
+
+                    execute("""
+                        INSERT INTO department
+                            (dept_id, dept_name)
+                        VALUES (%s, %s)
+                    """, (
+                        next_id,
+                        name.strip()
+                    ))
+
+                    st.success("Department added!")
+                    st.rerun()
+
+                except Exception as e:
+                    st.error(f"Unable to add department: {e}")
 
     df = get_departments()
 
@@ -580,22 +630,30 @@ def attendance():
 
         if submitted:
 
-            execute("""
-                INSERT INTO attendance
-                    (emp_id, attendance_date, status, remarks)
-                VALUES (%s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                    status=VALUES(status),
-                    remarks=VALUES(remarks)
-            """, (
-                int(emp),
-                day,
-                status,
-                remarks.strip() or None
-            ))
+            try:
 
-            st.success("Attendance saved!")
-            st.rerun()
+                next_id = get_next_id("attendance")
+
+                execute("""
+                    INSERT INTO attendance
+                        (attendance_id, emp_id, attendance_date, status, remarks)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        status=VALUES(status),
+                        remarks=VALUES(remarks)
+                """, (
+                    next_id,
+                    int(emp),
+                    day,
+                    status,
+                    remarks.strip() or None
+                ))
+
+                st.success("Attendance saved!")
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"Unable to save attendance: {e}")
 
     st.subheader("Attendance Records")
 
@@ -741,24 +799,33 @@ def salary():
 
         if submitted:
 
-            execute("""
-                INSERT INTO salary_records
-                    (emp_id, salary_month, basic_salary, allowance, deduction)
-                VALUES (%s, %s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                    basic_salary=VALUES(basic_salary),
-                    allowance=VALUES(allowance),
-                    deduction=VALUES(deduction)
-            """, (
-                int(emp),
-                month.replace(day=1),
-                basic,
-                allowance,
-                deduction
-            ))
+            try:
 
-            st.success("Salary saved!")
-            st.rerun()
+                next_id = get_next_id("salary_records")
+
+                execute("""
+                    INSERT INTO salary_records
+                        (salary_id, emp_id, salary_month,
+                         basic_salary, allowance, deduction)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        basic_salary=VALUES(basic_salary),
+                        allowance=VALUES(allowance),
+                        deduction=VALUES(deduction)
+                """, (
+                    next_id,
+                    int(emp),
+                    month.replace(day=1),
+                    basic,
+                    allowance,
+                    deduction
+                ))
+
+                st.success("Salary saved!")
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"Unable to save salary: {e}")
 
     st.subheader("Salary Records")
 
@@ -912,20 +979,29 @@ def leave_requests():
 
             else:
 
-                execute("""
-                    INSERT INTO leave_requests
-                        (emp_id, start_date, end_date, reason, status)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (
-                    int(emp),
-                    start,
-                    end,
-                    reason,
-                    status
-                ))
+                try:
 
-                st.success("Leave request added!")
-                st.rerun()
+                    next_id = get_next_id("leave_requests")
+
+                    execute("""
+                        INSERT INTO leave_requests
+                            (leave_id, emp_id, start_date,
+                             end_date, reason, status)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (
+                        next_id,
+                        int(emp),
+                        start,
+                        end,
+                        reason,
+                        status
+                    ))
+
+                    st.success("Leave request added!")
+                    st.rerun()
+
+                except Exception as e:
+                    st.error(f"Unable to add leave request: {e}")
 
     st.subheader("All Leave Requests")
 
